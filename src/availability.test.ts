@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkAvailability } from './availability';
+import { checkAvailability, parseTime } from './availability';
 import { sampleRooms } from './sampleData';
 
 // Derive types from the real function so the test does not depend on the path of './types'.
@@ -240,5 +240,31 @@ describe('regression - named cases with exact reasons', () => {
 
     expect(sampleRooms).toEqual(snapshot);
     expect(frozenRooms).toEqual(snapshot);
+  });
+});
+
+describe('regression - invalid and out-of-range time input (risks C2, C3)', () => {
+  it('C3: "25:00"-"26:00" parsed via parseTime is unavailable and never "available"', () => {
+    const start = parseTime('25:00');
+    const end = parseTime('26:00');
+    const result = checkAvailability(makeRoom(), start, end, CURRENT_TIME);
+    expect(result.decision).toBe('unavailable');
+    expect(result.reasons).toEqual(['Times must fall within the same day (00:00–24:00).']);
+  });
+
+  it('C2: empty string start parsed via parseTime is NaN and reported as invalid input, not 00:00', () => {
+    const start = parseTime('');
+    expect(Number.isNaN(start)).toBe(true);
+    const result = checkAvailability(makeRoom(), start, 720, CURRENT_TIME);
+    expect(result.decision).toBe('unavailable');
+    expect(result.reasons).toEqual(['Please enter a valid start time, end time and current time.']);
+  });
+
+  it('C2: empty string end parsed via parseTime is NaN and reported as invalid input, not 00:00', () => {
+    const end = parseTime('');
+    expect(Number.isNaN(end)).toBe(true);
+    const result = checkAvailability(makeRoom(), 660, end, CURRENT_TIME);
+    expect(result.decision).toBe('unavailable');
+    expect(result.reasons).toEqual(['Please enter a valid start time, end time and current time.']);
   });
 });
